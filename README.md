@@ -78,7 +78,7 @@ shutdown: The task was interrupted or aborted due to a system shutdown
 or manual intervention.
 
 ```
-![Alt text] (https://github.com/balaji1974/apache-airflow/blob/main/airlfow-task-retry-and-reschedule.png)
+![TaskStages] (https://github.com/balaji1974/apache-airflow/blob/main/airlfow-task-retry-and-reschedule.png?raw=true)
 
 ## Install Airflow
 
