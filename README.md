@@ -234,7 +234,7 @@ All example DAGs will now be missing or removed
 
 ```
 
-## Create our first DAG
+## Create our first DAG - With BashOperator
 ```xml 
 All dags are created under the dags folder.
 1. Under this folder create a file called our_first_dag.py
@@ -287,6 +287,24 @@ with DAG(
     task1 >> [task2, task3]
 
 2. Refresh the page containing our DAGs and see its execution 
+
+3. You can make changes to the DAG and create a different version 
+in the code by changing the version id: 
+dag_id='our_first_dag_v2'
+
+4. You can give the dependency of tasks in multiple ways:
+# Task dependency method 1
+task1.set_downstream(task2)
+task1.set_downstream(task3)
+
+# Task dependency method 2
+task1 >> task2
+task1 >> task3
+
+# Task dependency method 3
+task1 >> [task2, task3]
+
+
 
 ```
 
