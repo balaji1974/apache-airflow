@@ -117,8 +117,6 @@ services:
 
   airflow-scheduler:
     <<: *airflow-common
-    build: .
-    image: my-airflow:custom
     command: scheduler
     healthcheck:
       test: [ "CMD", "curl", "--fail", "http://localhost:8974/health" ]
@@ -134,7 +132,6 @@ services:
 
   airflow-dag-processor:
     <<: *airflow-common
-    build: .
     command: dag-processor
     healthcheck:
       test: [ "CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"' ]

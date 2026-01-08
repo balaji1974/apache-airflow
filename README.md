@@ -175,9 +175,12 @@ docker-compose --version
 
 3. Fetch Official Docker compose file for airflow:
 curl -LfO 'https://airflow.apache.org/docs/apache-airflow/3.1.5/docker-compose.yaml'
+In our folder we have this file as docker-compose-original.yaml.
 
 4. Optimize the docker compose as given in the project directory 
 to remove unnecessay dependencies
+In our folder we have this file as docker-compose-optimized.yaml. 
+Please rename it to docker-compose.yaml and use it. 
 
 5. Create directory and give access to docker-compose
 mkdir -p ./dags ./logs ./plugins ./config
@@ -305,6 +308,87 @@ task1 >> task3
 task1 >> [task2, task3]
 
 
+```
+
+## Create DAG - With PythonOperator
+```xml 
+We want to create a python operator with 2 python packages 
+skikit-learn
+matplotlib
+
+In order to make sure that these 2 packages exit within our python
+environment do the following before running the docker container
+
+1. Create a Dockerfile with the following contents:
+ARG AIRFLOW_IMAGE_NAME=apache/airflow:3.1.5
+FROM ${AIRFLOW_IMAGE_NAME}
+
+USER airflow
+RUN pip install --no-cache-dir scikit-learn
+RUN pip install --no-cache-dir matplotlib
+
+2. Add the following in the docker-compose.yaml file 
+airflow-scheduler:
+    build: .
+    image: my-airflow:custom
+
+airflow-dag-processor:
+    build: .
+
+Leave the other sections and lines within the sections as is. 
+
+3. Build the docker container
+docker compose down
+# just to make sure the same image does not exist
+docker image rm my-airflow:custom 2>/dev/null || true
+docker compose build --no-cache 
+docker compose up -d 
+
+4. Under this folder create a file called create_dag_with_python_operator.py
+with the following content.
+
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.providers.standard.operators.python import PythonOperator
+
+
+default_args = {
+    'owner': 'coder2j',
+    'retry': 5,
+    'retry_delay': timedelta(minutes=5)
+}
+
+
+def get_sklearn():
+    import sklearn
+    print(f"sklearn with version: {sklearn.__version__} ")
+
+
+def get_matplotlib():
+    import matplotlib
+    print(f"matplotlib with version: {matplotlib.__version__}")
+
+
+with DAG(
+    default_args=default_args,
+    dag_id="dag_with_python_dependencies_v1",
+    start_date=datetime(2026, 1, 5),
+    schedule='@daily'
+) as dag:
+    task1 = PythonOperator(
+        task_id='get_sklearn',
+        python_callable=get_sklearn
+    )
+    
+    task2 = PythonOperator(
+        task_id='get_matplotlib',
+        python_callable=get_matplotlib
+    )
+
+    task1 >> task2
+
+5. Refresh the page containing our DAGs and see its execution by running it
 
 ```
 
