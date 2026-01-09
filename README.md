@@ -442,16 +442,16 @@ with DAG(
 
 
 5. This example contains the following
-a. greet task -> with static variables
-b. get_sklearn task -> calling sklearn python library
-c. get_matplotlib task -> calling matplotlib python library
-d. set_name task -> setting a variable using xcoms
-e. get_name task -> getting the varibale set using xcoms
-f. set_multiple_values task -> setting multiple variables using xcoms 
-g. get_multiple_values task -> getting multiple variable set using xcoms 
+	a. greet task -> with static variables
+	b. get_sklearn task -> calling sklearn python library
+	c. get_matplotlib task -> calling matplotlib python library
+	d. set_name task -> setting a variable using xcoms
+	e. get_name task -> getting the varibale set using xcoms
+	f. set_multiple_values task -> setting multiple variables using xcoms 
+	g. get_multiple_values task -> getting multiple variable set using xcoms 
 
 
-5. Refresh the page containing our DAGs and see its execution by running it
+6. Refresh the page containing our DAGs and see its execution by running it
 Look into the log to see the values
 
 Note: Max size of xcom=48M and must not be used to share large number of values
