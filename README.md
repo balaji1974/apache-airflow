@@ -240,7 +240,7 @@ All example DAGs will now be missing or removed
 ## Create our first DAG - With BashOperator
 ```xml 
 All dags are created under the dags folder.
-1. Under this folder create a file called our_first_dag.py
+1. Under this folder create a file called dag_with_bash_operator.py
 with the following content.
 
 from datetime import datetime, timedelta
@@ -257,7 +257,7 @@ default_args = {
 
 
 with DAG(
-    dag_id='our_first_dag_v1',
+    dag_id='dag_with_bash_operator_v1',
     default_args=default_args,
     description='This is our first dag that we write',
     start_date=datetime(2026, 1, 4, 2),
@@ -344,9 +344,8 @@ docker image rm my-airflow:custom 2>/dev/null || true
 docker compose build --no-cache 
 docker compose up -d 
 
-4. Under this folder create a file called create_dag_with_python_operator.py
+4. Under this folder create a file called dag_with_python_operator.py
 with the following content.
-
 from datetime import datetime, timedelta
 
 from airflow import DAG
@@ -354,11 +353,13 @@ from airflow.providers.standard.operators.python import PythonOperator
 
 
 default_args = {
-    'owner': 'coder2j',
+    'owner': 'balaji',
     'retry': 5,
     'retry_delay': timedelta(minutes=5)
 }
 
+def greet(name, age):
+    print(f"Name is {name} and age is {age} ")
 
 def get_sklearn():
     import sklearn
@@ -369,26 +370,91 @@ def get_matplotlib():
     import matplotlib
     print(f"matplotlib with version: {matplotlib.__version__}")
 
+def set_name():
+    return "Balaji"
+
+def get_name(ti):
+    name = ti.xcom_pull(task_ids='set_name')
+    print(f"Hello my name is {name}")
+
+def set_multiple_values(ti):
+    ti.xcom_push('first_name', "Balaji")
+    ti.xcom_push('last_name', "Thiagarajan") 
+
+def get_multiple_values(ti):
+    first_name = ti.xcom_pull(task_ids='set_multiple_values', key='first_name')
+    last_name = ti.xcom_pull(task_ids='set_multiple_values', key='last_name')
+    print(f"Full name is {first_name} {last_name}") 
 
 with DAG(
     default_args=default_args,
-    dag_id="dag_with_python_dependencies_v1",
+    dag_id="dag_with_python_operator_v8",
     start_date=datetime(2026, 1, 5),
     schedule='@daily'
 ) as dag:
+    
+    # Calling simple function and passing parameters to it using op_kwargs
     task1 = PythonOperator(
+        task_id='greet',
+        python_callable=greet,
+        op_kwargs={'name': 'Balaji', 'age': 30} 
+    )
+    
+    # Calling python function which uses sklearn package
+    task2 = PythonOperator(
         task_id='get_sklearn',
         python_callable=get_sklearn
     )
     
-    task2 = PythonOperator(
+    # Calling python function which uses matplotlib package
+    task3 = PythonOperator(
         task_id='get_matplotlib',
         python_callable=get_matplotlib
     )
+    
+    # Calling python function which returns a value
+    # This value can be seen under Browse -> XComs
+    task4 = PythonOperator(
+        task_id='set_name',
+        python_callable=set_name
+    )
 
-    task1 >> task2
+    # Reading the value from XComs (from another task)
+    task5 = PythonOperator(
+        task_id='get_name',
+        python_callable=get_name
+    )
+
+    # Calling python function which returns multiple value
+    # This value can be seen under Browse -> XComs
+    task6 = PythonOperator(
+        task_id='set_multiple_values',
+        python_callable=set_multiple_values
+    )
+
+    # Reading multiple values using XComs
+    task7 = PythonOperator(
+        task_id='get_multiple_values',
+        python_callable=get_multiple_values
+    )   
+    
+    task1 >> task2 >> task3 >> task4 >> task5 >> task6 >> task7
+
+
+5. This example contains the following
+a. greet task -> with static variables
+b. get_sklearn task -> calling sklearn python library
+c. get_matplotlib task -> calling matplotlib python library
+d. set_name task -> setting a variable using xcoms
+e. get_name task -> getting the varibale set using xcoms
+f. set_multiple_values task -> setting multiple variables using xcoms 
+g. get_multiple_values task -> getting multiple variable set using xcoms 
+
 
 5. Refresh the page containing our DAGs and see its execution by running it
+Look into the log to see the values
+
+Note: Max size of xcom=48M and must not be used to share large number of values
 
 ```
 

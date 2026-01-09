@@ -12,9 +12,9 @@ default_args = {
 
 
 with DAG(
-    dag_id='our_first_dag_v1',
+    dag_id='dag_with_bash_operator_v1',
     default_args=default_args,
-    description='This is our first dag that we write',
+    description='This is our first dag that we write that contains bash operator',
     start_date=datetime(2026, 1, 4, 2),
     schedule='@daily'
 ) as dag:
