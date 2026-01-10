@@ -238,6 +238,7 @@ All example DAGs will now be missing or removed
 ```
 
 ## Create our first DAG - With BashOperator
+### dag_with_bash_operator.py
 ```xml 
 All dags are created under the dags folder.
 1. Under this folder create a file called dag_with_bash_operator.py
@@ -311,6 +312,7 @@ task1 >> [task2, task3]
 ```
 
 ## Create DAG - With PythonOperator
+### dag_with_python_operator.py
 ```xml 
 We want to create a python operator with 2 python packages 
 skikit-learn
@@ -344,7 +346,8 @@ docker image rm my-airflow:custom 2>/dev/null || true
 docker compose build --no-cache 
 docker compose up -d 
 
-4. Under this folder create a file called dag_with_python_operator.py
+4. All dags are created under the dags folder.
+Under this folder create a file called dag_with_python_operator.py
 with the following content.
 from datetime import datetime, timedelta
 
@@ -458,6 +461,65 @@ Note: Max size of xcom=48M and must not be used to share large number of values
 
 ```
 
+## Create DAG with taskflow API
+### dag_with_taskflow_api.py
+```xml 
+A TaskFlow API is a modern way to build data workflows (DAGs) using Python functions 
+and decorators (like @task) to define tasks, making code cleaner, more readable, and 
+reducing boilerplate by automatically handling data passing (XComs) and task 
+dependencies, essentially turning Python functions into manageable, connected steps 
+in a workflow. It simplifies creating Extract, Transform, Load (ETL) pipelines by 
+letting you pass return values from one function as arguments to the next, with 
+Airflow managing the underlying data movement. 
+
+1. All dags are created under the dags folder.
+Under this folder create a file called dag_with_taskflow_api.py
+with the following content:
+from datetime import datetime, timedelta
+from airflow.decorators import dag, task
+
+default_args = {
+    'owner': 'Balaji',
+    'retries': 5,
+    'retry_delay': timedelta(minutes=5)
+}
+
+@dag(dag_id='dag_with_taskflow_api_v2', 
+     default_args=default_args, 
+     start_date=datetime(2021, 10, 26), 
+     schedule='@daily')
+def hello_world_etl():
+
+    @task(multiple_outputs=True)
+    def get_name():
+        return {
+            'first_name': 'Balaji',
+            'last_name': 'Thiagarajan'
+        }
+
+    @task()
+    def get_age():
+        return 45
+
+    @task()
+    def greet(first_name, last_name, age):
+        print(f"Hello World! My name is {first_name} {last_name} "
+              f"and I am {age} years old!")
+    
+    name_dict = get_name()
+    age = get_age()
+    greet(first_name=name_dict['first_name'], 
+          last_name=name_dict['last_name'],
+          age=age)
+
+greet_dag = hello_world_etl()
+
+
+2. Refresh the page containing our DAGs and see its execution by running it
+Look into the log to see the values
+
+
+```
 
 ### Reference
 ```xml
