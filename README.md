@@ -521,6 +521,200 @@ Look into the log to see the values
 
 ```
 
+## Create DAG with Catchup and Backfill
+### dag_with_catchup_and_backfill.py
+```xml 
+Catchup: This is an automatic feature of the Airflow scheduler (enabled by default) 
+that runs all the missed DAG runs between the start_date defined in the DAG and the 
+current date/time when the DAG is unpaused or deployed.
+catchup=False: If historical runs are not needed (e.g., if the DAG is processing 
+the most current data regardless of interval), the catchup parameter can be set to 
+False in the DAG definition. This tells the scheduler to only run the DAG for the 
+latest interval. 
+
+Backfill: This is a manual, on-demand process, usually initiated via the command-line 
+interface (CLI) or API, that runs the DAG for a specific, user-defined historical 
+date range, regardless of the DAG's catchup parameter setting. 
+Specific Intervals: Unlike catchup, which runs all missed runs from the start_date, 
+backfill allows you to pick a specific interval in the past 
+(e.g., just last week's data).
+
+1. Catchup (Note: catchup=True)
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+
+
+default_args = {
+    'owner': 'balaji',
+    'retries': 5,
+    'retry_delay': timedelta(minutes=5)
+}
+
+with DAG(
+    dag_id='dag_with_catchup_backfill_v01',
+    default_args=default_args,
+    start_date=datetime(2025, 12, 31),
+    schedule='@daily',
+    catchup=True
+) as dag:
+    task1 = BashOperator(
+        task_id='task1',
+        bash_command='echo This is a simple bash command!'
+    )
+
+
+2. Refresh the page containing our DAGs and see its execution by running it
+Look into the log to see the values
+
+3. Backfill: 
+docker ps
+docker exec -it <container-id> bash
+airflow backfill create --dag-id dag_with_catchup_backfill_v01 --from-date 2025-12-31 --to-date 2026-01-10
+
+```
+
+## Create DAG with cron expression
+### dag_with_cron_expression.py
+```xml 
+A cron expression is a string of characters defining a schedule for automated tasks, 
+specifying when commands or scripts should run, typically using five or six fields 
+for seconds, minutes, hours, day of month, month, and day of week, with special 
+characters like * (any value) and / (interval) to set repeating patterns 
+(e.g., 0 0 * * * runs daily at midnight) 
+
+Ref the below link for easy cron creation:
+https://crontab.guru/
+
+1. Create the DAG
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+
+
+default_args = {
+    'owner': 'balaji',
+    'retries': 5,
+    'retry_delay': timedelta(minutes=5)
+}
+
+with DAG(
+    default_args=default_args,
+    dag_id="dag_with_cron_expression_v04",
+    start_date=datetime(2026, 1, 5),
+    schedule='0 3 * * Tue-Fri'
+) as dag:
+    task1 = BashOperator(
+        task_id='task1',
+        bash_command="echo dag with cron expression!"
+    )
+    task1
+
+2. Refresh the page containing our DAGs and see its execution by running it
+Look into the log to see the values
+
+```
+
+## DAG connection to database
+### dag_with_sql_operator.py
+```xml 
+1. Expose the Postgres Database by adding the ports to the existing Postgres
+service in our docker-compose.yaml
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+2. Build the postgres container
+docker compose up -d --no-deps --build postgres
+
+3. Check the connection using PgAdmin by creating a new connection
+Register -> Server 
+Name: airflow
+
+Connection (tab)
+HostName: localhost
+Port: 5432
+Maintainance DB: airflow
+UserName: airflow
+Password: airflow
+
+Save and Test the connection 
+
+4. Once connected right click on the database
+Create New Database: test
+
+5. Create a DAG Connection from our airflow console page
+Admin -> Connection
+Connection ID: postgres_localhost
+Connection Type: postgres
+Host: postgres (our service name in docker or host.docker.internal or localhost if exposed outside)
+Login: airflow
+Password: airflow
+Port: 5432
+Database: test
+Save
+
+6. Create our sql operations DAG
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
+default_args = {
+    'owner': 'balaji',
+    'retries': 5,
+    'retry_delay': timedelta(minutes=5)
+}
+
+
+with DAG(
+    dag_id='dag_with_sql_operator_v1',
+    default_args=default_args,
+    start_date=datetime(2025, 12, 31),
+    schedule='0 0 * * *'
+) as dag:
+    task1 = SQLExecuteQueryOperator(
+        task_id='create_table',
+        conn_id='postgres_localhost',
+        sql="""
+            create table if not exists dag_runs (
+                dt date,
+                dag_id character varying,
+                primary key (dt, dag_id)
+            )
+        """
+    )
+
+    task2 = SQLExecuteQueryOperator(
+        task_id='insert_into_table',
+        conn_id='postgres_localhost',
+        sql="""
+            insert into dag_runs (dt, dag_id) values ('{{ ds }}', '{{ dag.dag_id }}')
+        """
+    )
+
+    task3 = SQLExecuteQueryOperator(
+        task_id='delete_data_from_table',
+        conn_id='postgres_localhost',
+        sql="""
+            delete from dag_runs where dt = '{{ ds }}' and dag_id = '{{ dag.dag_id }}';
+        """
+    )
+    task1 >> task3 >> task2
+
+
+7. Run the DAG from the console by enabling it and check 
+if it has run successfully.
+
+8. Check the test database to see if the table is created 
+and a record has been inserted 
+
+```
+
+
 ### Reference
 ```xml
 https://www.youtube.com/watch?v=K9AnJ9_ZAXE&list=PLwFJcsJ61oujAqYpMp1kdUBcPG0sE0QMT
