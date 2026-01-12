@@ -615,6 +615,9 @@ with DAG(
 2. Refresh the page containing our DAGs and see its execution by running it
 Look into the log to see the values
 
+For creating cron expressions you can use:
+https://crontab.guru/
+
 ```
 
 ## DAG connection to database
@@ -824,7 +827,7 @@ you care about image size optimization.
 ```
 
 ## Airflow AWS S3 sensor 
-### sensor-s3.py
+### dag-sensor-s3.py
 ```xml 
 Sensor is a special type of operator which waits for something to occur 
 It is event based and used when the exact time is not know for tigger 
@@ -832,9 +835,107 @@ It is event based and used when the exact time is not know for tigger
 Minio
 MinIO is a high-performance, open-source object storage server that's fully compatible 
 with the Amazon S3 API, designed for modern cloud-native applications, AI/ML, analytics, 
-and data-intensive workloads. 
+and data-intensive workloads.
 
+1. Open the minio install path on the browser and follow its installation instruction:
+https://docs.min.io/enterprise/aistor-object-store/installation/container/install/
 
+2. Pull the minio image:
+docker pull quay.io/minio/aistor/minio
+mkdir -p $HOME/minio/data $HOME/minio/certs
+
+3. Get minio license from the official license page. 
+
+4. Download the license file to $HOME/minio/minio.license for use in later steps.
+
+5. Run the minio docker image
+docker run -dt                                             \
+  -p 9000:9000 -p 9001:9001                                \
+  -v $HOME/minio/data:/mnt/data                            \
+  -v $HOME/minio/minio.license:/minio.license              \
+  -v $HOME/minio/certs:/etc/minio/certs                    \
+  --name "aistor-server"                                   \
+  quay.io/minio/aistor/minio:latest minio server /mnt/data \
+  --license /minio.license
+docker logs aistor-server
+
+6. Open the minio server 
+Open your browser to http://localhost:9001.
+
+7. Logim
+Log in using the default 
+username:minioadmin
+password:minioadmin
+
+8. Create a bucket called airflow and make sure it has read/write access
+
+9. Create a data folder inside our project root directory and 
+add data file data.csv (download the example file and save it into this directory)
+
+10. Upload this file into the airflow bucket that was created by 
+dragging and dropping it into the object browser of airflow folder 
+
+11. Create the DAG 
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
+
+default_args = {
+    'owner': 'balaji',
+    'retries': 5,
+    'retry_delay': timedelta(minutes=10)
+}
+
+with DAG(
+    dag_id='dag_sensor_s3_v1',
+    start_date=datetime(2025,12, 31),
+    schedule='@daily',
+    default_args=default_args
+) as dag:
+    task1 = S3KeySensor(
+        task_id='dag_sensor_s3',
+        bucket_name='airflow',
+        bucket_key='data.csv',
+        aws_conn_id='minio_conn',
+        mode='poke',
+        poke_interval=5,
+        timeout=30
+    )
+
+12. Check the available of Amazon s3 support inside the scheduler
+docker ps 
+docker exec -it <container-name-of-dag-processor> bash
+pip list | grep amazon 
+
+make sure amazon providers is present (in my case as below) 
+apache-airflow-providers-amazon          9.19.0
+
+13. Refer the sensor s3 key parameters at the below link:
+https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/_api/airflow/providers/amazon/aws/sensors/s3/index.html
+
+14. Create a DAG Connection from our airflow console page
+Admin -> Connection
+Connection ID: minio_conn
+Connection Type: Amazon Web Service
+
+Under Standard Fields
+AWS Access Key ID: minioadmin
+AWS Secret Access Key: minioadmin
+
+Extra Fields Json
+{
+  "endpoint_url": "http://host.docker.internal:9000",
+  "verify": false,
+  "config_kwargs": {
+    "s3": {
+      "addressing_style": "path"
+    }
+  }
+}
+Save
+
+15. Refresh the page and run the task
 
 ```
 
