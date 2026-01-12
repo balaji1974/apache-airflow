@@ -714,6 +714,129 @@ and a record has been inserted
 
 ```
 
+## Installing additional Python packages
+```xml 
+Extending vs Customization 
+The distinction between extending and customization in the context of Python packages 
+revolves around whether you are adding functionality externally or modifying the 
+internal workings. 
+
+Extending
+---------
+Extending is the standard, best-practice approach. 
+
+Methodology: 
+This involves building new code that imports and leverages existing packages, 
+adding features, or creating new modules that work alongside the original.
+
+Best Practices:
+Use virtual environments: Isolate dependencies for different projects.
+Create a separate package: Build a new, dependent package that uses the original package as 
+a dependency.
+Utilize inheritance/wrapper functions: Create new classes or functions that wrap or inherit 
+from the original package's components to add features.
+
+Benefit: The original package remains untouched, allowing for seamless updates without breaking 
+your added functionality. 
+
+Example:
+1. Create a requirements.txt file in the project root folder and add your dependencies:
+scikit-learn==1.8.2
+matplotlib==3.10.8
+
+2. Create a Dockerfile and add the following:
+FROM apache/airflow:3.1.5
+COPY requirement.txt /requirements.txt 
+
+RUN pip install --user --upgrade pip 
+RUN pip install --no-cache-dir --user -r /requirements.txt
+
+Save it
+
+3. Build the image
+docker build . --tag extending-airflow:latest
+
+4. Change the image to the newly built one inside the docker-compose.yaml
+x-airflow-common:
+  &airflow-common
+  image: ${AIRFLOW_IMAGE_NAME:-extending-airflow:latest}
+
+Save it
+
+5. Now you can create a new DAG file that can use the imports that were added
+
+6. Rebuild the airflow dag processor and scheduler services using this new image
+docker-compose up -d --no-deps --build airflow-scheduler airflow-dag-processor
+
+7. Refresh the page and run the task
+
+
+Customization
+-------------
+Customization, in this context, refers to directly modifying a third-party package's source code. 
+This practice is strongly discouraged. 
+
+Methodology: 
+Manually editing files in the site-packages directory or maintaining a private fork with local changes.
+
+Drawbacks:
+Difficult updates: Updating the original package (via pip install --upgrade) will likely overwrite 
+your custom changes.
+Version conflicts: Your customized version might become incompatible with other dependent packages.
+Deployment issues: Sharing your project becomes complex, as others would also need your exact custom 
+modifications. 
+
+Example:
+1. Clone the official airflow image
+git clone https://github.com/apache/airflow.git
+
+2. Open it in VSCode
+Inside the docker-context-files folder
+create a requirements.txt file
+scikit-learn==1.8.2
+matplotlib==3.10.8
+
+3. Build the image
+docker build . --build-arg AIRFLOW_VERSION='3.1.5' --tag customizing_airflow:latest
+
+4. Change the image to the newly built one inside the docker-compose.yaml
+x-airflow-common:
+  &airflow-common
+  image: ${AIRFLOW_IMAGE_NAME:-customizing_airflow:latest}
+
+5. Now you can create a new DAG file that can use the imports that were added
+
+6. Rebuild the airflow dag processor and scheduler services using this new image
+docker-compose up -d --no-deps --build airflow-scheduler airflow-dag-processor
+
+7. Refresh the page and run the task
+
+
+In summary, extend the functionality by building on top of existing packages and 
+using virtual environments, and avoid customization of installed packages whenever 
+possible. If internal modifications are unavoidable, use the "editable" install mode 
+(pip install -e path/to/SomePackage) to work on the source code in a development 
+directory under version control
+
+Use extend in 99% of time and choose customization only if extending is not possible and 
+you care about image size optimization. 
+
+```
+
+## Airflow AWS S3 sensor 
+### sensor-s3.py
+```xml 
+Sensor is a special type of operator which waits for something to occur 
+It is event based and used when the exact time is not know for tigger 
+
+Minio
+MinIO is a high-performance, open-source object storage server that's fully compatible 
+with the Amazon S3 API, designed for modern cloud-native applications, AI/ML, analytics, 
+and data-intensive workloads. 
+
+
+
+```
 
 ### Reference
 ```xml
