@@ -11,13 +11,13 @@ default_args = {
 }
 
 with DAG(
+    dag_id='dag_catchup_backfill_v01',
     default_args=default_args,
-    dag_id="dag_with_cron_expression_v04",
-    start_date=datetime(2026, 1, 5),
-    schedule='0 3 * * Tue-Fri'
+    start_date=datetime(2025, 12, 31),
+    schedule='@daily',
+    catchup=True
 ) as dag:
     task1 = BashOperator(
         task_id='task1',
-        bash_command="echo dag with cron expression!"
+        bash_command='echo This is a simple bash command!'
     )
-    task1

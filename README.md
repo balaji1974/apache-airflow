@@ -238,10 +238,10 @@ All example DAGs will now be missing or removed
 ```
 
 ## Create our first DAG - With BashOperator
-### dag_with_bash_operator.py
+### dag_bash_operator.py
 ```xml 
 All dags are created under the dags folder.
-1. Under this folder create a file called dag_with_bash_operator.py
+1. Under this folder create a file called dag_bash_operator.py
 with the following content.
 
 from datetime import datetime, timedelta
@@ -258,7 +258,7 @@ default_args = {
 
 
 with DAG(
-    dag_id='dag_with_bash_operator_v1',
+    dag_id='dag_bash_operator_v1',
     default_args=default_args,
     description='This is our first dag that we write',
     start_date=datetime(2026, 1, 4, 2),
@@ -312,7 +312,7 @@ task1 >> [task2, task3]
 ```
 
 ## Create DAG - With PythonOperator
-### dag_with_python_operator.py
+### dag_python_operator.py
 ```xml 
 We want to create a python operator with 2 python packages 
 skikit-learn
@@ -347,7 +347,7 @@ docker compose build --no-cache
 docker compose up -d 
 
 4. All dags are created under the dags folder.
-Under this folder create a file called dag_with_python_operator.py
+Under this folder create a file called dag_python_operator.py
 with the following content.
 from datetime import datetime, timedelta
 
@@ -391,7 +391,7 @@ def get_multiple_values(ti):
 
 with DAG(
     default_args=default_args,
-    dag_id="dag_with_python_operator_v8",
+    dag_id="dag_python_operator_v8",
     start_date=datetime(2026, 1, 5),
     schedule='@daily'
 ) as dag:
@@ -462,7 +462,7 @@ Note: Max size of xcom=48M and must not be used to share large number of values
 ```
 
 ## Create DAG with taskflow API
-### dag_with_taskflow_api.py
+### dag_taskflow_api.py
 ```xml 
 A TaskFlow API is a modern way to build data workflows (DAGs) using Python functions 
 and decorators (like @task) to define tasks, making code cleaner, more readable, and 
@@ -473,7 +473,7 @@ letting you pass return values from one function as arguments to the next, with
 Airflow managing the underlying data movement. 
 
 1. All dags are created under the dags folder.
-Under this folder create a file called dag_with_taskflow_api.py
+Under this folder create a file called dag_taskflow_api.py
 with the following content:
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
@@ -484,7 +484,7 @@ default_args = {
     'retry_delay': timedelta(minutes=5)
 }
 
-@dag(dag_id='dag_with_taskflow_api_v2', 
+@dag(dag_id='dag_taskflow_api_v2', 
      default_args=default_args, 
      start_date=datetime(2021, 10, 26), 
      schedule='@daily')
@@ -522,7 +522,7 @@ Look into the log to see the values
 ```
 
 ## Create DAG with Catchup and Backfill
-### dag_with_catchup_and_backfill.py
+### dag_catchup_and_backfill.py
 ```xml 
 Catchup: This is an automatic feature of the Airflow scheduler (enabled by default) 
 that runs all the missed DAG runs between the start_date defined in the DAG and the 
@@ -576,7 +576,7 @@ airflow backfill create --dag-id dag_with_catchup_backfill_v01 --from-date 2025-
 ```
 
 ## Create DAG with cron expression
-### dag_with_cron_expression.py
+### dag_cron_expression.py
 ```xml 
 A cron expression is a string of characters defining a schedule for automated tasks, 
 specifying when commands or scripts should run, typically using five or six fields 
@@ -602,7 +602,7 @@ default_args = {
 
 with DAG(
     default_args=default_args,
-    dag_id="dag_with_cron_expression_v04",
+    dag_id="dag_cron_expression_v04",
     start_date=datetime(2026, 1, 5),
     schedule='0 3 * * Tue-Fri'
 ) as dag:
@@ -621,7 +621,7 @@ https://crontab.guru/
 ```
 
 ## DAG connection to database
-### dag_with_sql_operator.py
+### dag_sql_operator.py
 ```xml 
 1. Expose the Postgres Database by adding the ports to the existing Postgres
 service in our docker-compose.yaml
@@ -674,7 +674,7 @@ default_args = {
 
 
 with DAG(
-    dag_id='dag_with_sql_operator_v1',
+    dag_id='dag_sql_operator_v1',
     default_args=default_args,
     start_date=datetime(2025, 12, 31),
     schedule='0 0 * * *'
@@ -827,7 +827,7 @@ you care about image size optimization.
 ```
 
 ## Airflow AWS S3 sensor 
-### dag-sensor-s3.py
+### dag_sensor_s3.py
 ```xml 
 Sensor is a special type of operator which waits for something to occur 
 It is event based and used when the exact time is not know for tigger 
@@ -903,6 +903,12 @@ with DAG(
         timeout=30
     )
 
+** Here  looks for the existance [mode='poke'] of the file [bucket_key='data.csv']
+ under the bucket [bucket_name='airflow'] and will look for it every 5 seconds 
+ [poke_interval=5] and will timeout [timeout=30] after 30 seconds.
+The connection it will use for connecting to the bucket is under the connection 
+name [aws_conn_id='minio_conn']
+
 12. Check the available of Amazon s3 support inside the scheduler
 docker ps 
 docker exec -it <container-name-of-dag-processor> bash
@@ -938,6 +944,13 @@ Save
 15. Refresh the page and run the task
 
 ```
+## Postgres Hooks 
+### dag_postgres_hooks.py
+```xml 
+
+
+```
+
 
 ### Reference
 ```xml

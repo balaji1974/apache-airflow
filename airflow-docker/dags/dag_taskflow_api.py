@@ -7,7 +7,7 @@ default_args = {
     'retry_delay': timedelta(minutes=5)
 }
 
-@dag(dag_id='dag_with_taskflow_api_v2', 
+@dag(dag_id='dag_taskflow_api_v2', 
      default_args=default_args, 
      start_date=datetime(2021, 10, 26), 
      schedule='@daily')

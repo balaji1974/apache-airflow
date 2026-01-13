@@ -11,7 +11,7 @@ default_args = {
 
 
 with DAG(
-    dag_id='dag_with_sql_operator_v1',
+    dag_id='dag_sql_operator_v1',
     default_args=default_args,
     start_date=datetime(2025, 12, 31),
     schedule='0 0 * * *'

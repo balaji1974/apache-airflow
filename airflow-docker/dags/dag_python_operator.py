@@ -40,7 +40,7 @@ def get_multiple_values(ti):
 
 with DAG(
     default_args=default_args,
-    dag_id="dag_with_python_operator_v8",
+    dag_id="dag_python_operator_v8",
     start_date=datetime(2026, 1, 5),
     schedule='@daily'
 ) as dag:
