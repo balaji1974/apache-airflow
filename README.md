@@ -30,7 +30,7 @@ DAG - consist of nodes (connected by edges) and edges (sharp one way direction)
 
 ```
 
-## Task Lifecycle 
+## Airflow Task Lifecycle 
 
 ```xml 
 Task Stages - Early Phase
@@ -237,7 +237,7 @@ All example DAGs will now be missing or removed
 
 ```
 
-## Create our first DAG - With BashOperator
+## Airflow DAG with BashOperator
 ### dag_bash_operator.py
 ```xml 
 All dags are created under the dags folder.
@@ -311,7 +311,7 @@ task1 >> [task2, task3]
 
 ```
 
-## Create DAG - With PythonOperator
+## Airflow DAG with PythonOperator
 ### dag_python_operator.py
 ```xml 
 We want to create a python operator with 2 python packages 
@@ -461,7 +461,7 @@ Note: Max size of xcom=48M and must not be used to share large number of values
 
 ```
 
-## Create DAG with taskflow API
+## Airflow DAG with taskflow API
 ### dag_taskflow_api.py
 ```xml 
 A TaskFlow API is a modern way to build data workflows (DAGs) using Python functions 
@@ -521,7 +521,7 @@ Look into the log to see the values
 
 ```
 
-## Create DAG with Catchup and Backfill
+## Airflow DAG with Catchup and Backfill
 ### dag_catchup_and_backfill.py
 ```xml 
 Catchup: This is an automatic feature of the Airflow scheduler (enabled by default) 
@@ -575,7 +575,7 @@ airflow backfill create --dag-id dag_with_catchup_backfill_v01 --from-date 2025-
 
 ```
 
-## Create DAG with cron expression
+## Airflow DAG with CRON Expression
 ### dag_cron_expression.py
 ```xml 
 A cron expression is a string of characters defining a schedule for automated tasks, 
@@ -620,7 +620,7 @@ https://crontab.guru/
 
 ```
 
-## DAG connection to database
+## Airflow DAG with Connection to Database
 ### dag_sql_operator.py
 ```xml 
 1. Expose the Postgres Database by adding the ports to the existing Postgres
@@ -717,7 +717,7 @@ and a record has been inserted
 
 ```
 
-## Installing additional Python packages
+## Airflow DAG - Installing Additional Python Packages
 ```xml 
 Extending vs Customization 
 The distinction between extending and customization in the context of Python packages 
@@ -826,7 +826,7 @@ you care about image size optimization.
 
 ```
 
-## Airflow AWS S3 sensor 
+## Airflow DAG with AWS S3 sensor 
 ### dag_sensor_s3.py
 ```xml 
 Sensor is a special type of operator which waits for something to occur 
@@ -944,10 +944,178 @@ Save
 15. Refresh the page and run the task
 
 ```
-## Postgres Hooks 
+## Airflow DAG with Hooks S3 and Postgres SQL 
 ### dag_postgres_hooks.py
 ```xml 
+Airflow hooks are Python classes that serve as high-level interfaces to 
+external platforms and databases, such as AWS, Google Cloud, MySQL, or 
+Postgres. They abstract the complexities of API interactions and manage 
+authentication details, centralizing credentials in the Airflow metadata 
+database for better security and reusability. 
 
+Common use cases:
+PostgresHook: For connecting to PostgreSQL databases and executing queries.
+S3Hook / AWSHook: For interacting with Amazon S3 storage and other AWS services.
+BigQueryHook / GCPHook: For interacting with Google Cloud Platform services.
+HttpHook: For making general HTTP requests to REST APIs.
+SlackWebhook: For sending notifications to Slack. 
+
+The below DAG will read data from Postgres database and create a text file 
+from its values and upload it into a S3 bucket. 
+
+1. Open our Postgres database test that we created in the 
+DAG Connection to Database example and create a table under it:
+
+CREATE TABLE IF NOT EXISTS public.orders (
+    order_id VARCHAR,
+    date DATE,
+    product_name VARCHAR,
+    quantity INTEGER,
+    PRIMARY KEY (order_id)
+);
+
+2. Import data & update date
+Using PGAdmin, right click on the table that was just created and import 
+data into the table from orders.csv (important is to keep the header on 
+to remove the first line from csv during import or remove the first line 
+from the csv before import)
+
+Adjust the date to fit data within your current date range
+select * from orders where date >= '2026-01-13' and date <= '2026-01-13'
+update orders set date=date + interval '1 months'
+
+3. Add postgres hooks into the Dockerfile
+RUN pip install --no-cache-dir apache-airflow-providers-postgres
+
+4. Rebuild the image 
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+
+5. Also install apache-airflow-providers-postgres in your local python environment
+pip install apache-airflow-providers-postgres 
+
+6. Look at the hooks documentation
+https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/_api/airflow/providers/postgres/hooks/postgres/index.html
+
+7. Create the DAG
+
+import csv
+import logging
+from datetime import datetime, timedelta
+from tempfile import NamedTemporaryFile
+
+from airflow import DAG
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+
+default_args = {
+    'owner': 'balaji',
+    'retries': 5,
+    'retry_delay': timedelta(minutes=10)
+}
+
+
+def postgres_to_s3(**context):
+    data_interval_start = context["prev_data_interval_start_success"]
+    data_interval_end   = context["data_interval_start"]
+    start_key = data_interval_start.strftime("%Y-%m-%d")
+    logging.info("Start Key: %s", {start_key})
+    end_key   = data_interval_end.strftime("%Y-%m-%d")
+    logging.info("End Key: %s", {end_key})
+
+    # step 1: query data from postgresql db and save into text file
+    hook = PostgresHook(postgres_conn_id="postgres_localhost")
+    conn = hook.get_conn()
+    cursor = conn.cursor()
+    # Fetch order date for previous day and current day
+    cursor.execute("select * from orders where date >= %s and date <= %s",
+                   (start_key, end_key))
+    #cursor.execute("select * from orders where date >= '2018-04-30' and date < '2025-05-01'")
+    with NamedTemporaryFile(mode='w', suffix=f"{start_key}") as f:
+    # with open(f"dags/get_orders_{ds_nodash}.txt", "w") as f:
+        csv_writer = csv.writer(f)
+        csv_writer.writerow([i[0] for i in cursor.description])
+        csv_writer.writerows(cursor)
+        f.flush()
+        cursor.close()
+        conn.close()
+        logging.info("Saved orders data in text file: %s", f"dags/get_orders_{start_key}.txt")
+    # step 2: upload text file into S3
+        s3_hook = S3Hook(aws_conn_id="minio_conn")
+        s3_hook.load_file(
+            filename=f.name,
+            key=f"orders/{start_key}.txt",
+            bucket_name="airflow",
+            replace=True
+        )
+        logging.info("Orders file %s has been pushed to S3!", f.name)
+
+
+with DAG(
+    dag_id="dag_postgres_hooks_v01",
+    default_args=default_args,
+    start_date=datetime(2022, 4, 30),
+    schedule='@daily'
+) as dag:
+    task1 = PythonOperator(
+        task_id="postgres_to_s3",
+        python_callable=postgres_to_s3
+    )
+    task1
+
+
+* The connection it will use for connecting to the bucket is under the connection 
+name [aws_conn_id='minio_conn']
+* The connection it will use for connecting to the Postgres is under the connection 
+postgres_conn_id="postgres_localhost"
+
+8. Check the available of Amazon s3 support inside the scheduler
+docker ps 
+docker exec -it <container-name-of-dag-processor> bash
+pip list | grep amazon 
+
+make sure amazon providers is present (in my case as below) 
+apache-airflow-providers-amazon          9.19.0
+
+9. Refer the sensor s3 key parameters at the below link:
+https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/_api/airflow/providers/amazon/aws/sensors/s3/index.html
+
+10. Create a DAG Connection from our airflow console page
+Admin -> Connection
+Connection ID: minio_conn
+Connection Type: Amazon Web Service
+
+Under Standard Fields
+AWS Access Key ID: minioadmin
+AWS Secret Access Key: minioadmin
+
+Extra Fields Json
+{
+  "endpoint_url": "http://host.docker.internal:9000",
+  "verify": false,
+  "config_kwargs": {
+    "s3": {
+      "addressing_style": "path"
+    }
+  }
+}
+Save
+
+11. Create a DAG Connection from our airflow console page
+Admin -> Connection
+Connection ID: postgres_localhost
+Connection Type: postgres
+Host: postgres (our service name in docker or host.docker.internal or localhost if exposed outside)
+Login: airflow
+Password: airflow
+Port: 5432
+Database: test
+Save
+
+12. Refresh the page and run the task
 
 ```
 
